@@ -18,14 +18,14 @@ COLON = 11
 COMMA = 12
 SEMI = 13
 PLUS = 14
-MINUS = 15
-STAR = 16
-SLASH = 17
-VBAR = 18
-AMPER = 19
-LESS = 20
-GREATER = 21
-NEWSUM = 22
+NEWPLUS = 15
+MINUS = 16
+STAR = 17
+SLASH = 18
+VBAR = 19
+AMPER = 20
+LESS = 21
+GREATER = 22
 EQUAL = 23
 DOT = 24
 PERCENT = 25
@@ -98,7 +98,6 @@ EXACT_TOKEN_TYPES = {
     '->': RARROW,
     '.': DOT,
     '...': ELLIPSIS,
-    '.=': NEWSUM,
     '/': SLASH,
     '//': DOUBLESLASH,
     '//=': DOUBLESLASHEQUAL,
@@ -127,6 +126,7 @@ EXACT_TOKEN_TYPES = {
     '|=': VBAREQUAL,
     '}': RBRACE,
     '~': TILDE,
+    '°': NEWPLUS,
 }
 
 def ISTERMINAL(x):

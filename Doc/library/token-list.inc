@@ -45,6 +45,10 @@
 
    Token value for ``"+"``.
 
+.. data:: NEWPLUS
+
+   Token value for ``"°"``.
+
 .. data:: MINUS
 
    Token value for ``"-"``.
@@ -72,10 +76,6 @@
 .. data:: GREATER
 
    Token value for ``">"``.
-
-.. data:: NEWSUM
-
-   Token value for ``".="``.
 
 .. data:: EQUAL
 
