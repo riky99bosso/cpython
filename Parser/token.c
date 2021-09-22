@@ -28,6 +28,7 @@ const char * const _PyParser_TokenNames[] = {
     "AMPER",
     "LESS",
     "GREATER",
+    "NEWSUM",
     "EQUAL",
     "DOT",
     "PERCENT",
@@ -140,6 +141,11 @@ PyToken_TwoChars(int c1, int c2)
         switch (c2) {
         case '=': return MINEQUAL;
         case '>': return RARROW;
+        }
+        break;
+    case '.':
+        switch (c2) {
+        case '=': return NEWSUM;
         }
         break;
     case '/':

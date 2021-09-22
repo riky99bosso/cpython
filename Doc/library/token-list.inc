@@ -73,6 +73,10 @@
 
    Token value for ``">"``.
 
+.. data:: NEWSUM
+
+   Token value for ``".="``.
+
 .. data:: EQUAL
 
    Token value for ``"="``.
