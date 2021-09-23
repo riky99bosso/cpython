@@ -47,8 +47,6 @@
 
 .. data:: NEWPLUS
 
-   Token value for ``"°"``.
-
 .. data:: MINUS
 
    Token value for ``"-"``.
@@ -76,6 +74,10 @@
 .. data:: GREATER
 
    Token value for ``">"``.
+
+.. data:: NEWEQUAL
+
+   Token value for ``".."``.
 
 .. data:: EQUAL
 

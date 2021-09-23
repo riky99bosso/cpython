@@ -147,10 +147,22 @@ assignment[stmt_ty]:
             "Variable annotation syntax is",
             _PyAST_AnnAssign(CHECK(expr_ty, _PyPegen_set_expr_context(p, a, Store)), b, c, 1, EXTRA)
         ) }
+    | a=NAME ':' b=expression c=['..' d=annotated_rhs { d }] {
+        CHECK_VERSION(
+            stmt_ty,
+            6,
+            "Variable annotation syntax is",
+            _PyAST_AnnAssign(CHECK(expr_ty, _PyPegen_set_expr_context(p, a, Store)), b, c, 1, EXTRA)
+        ) }
     | a=('(' b=single_target ')' { b }
          | single_subscript_attribute_target) ':' b=expression c=['=' d=annotated_rhs { d }] {
         CHECK_VERSION(stmt_ty, 6, "Variable annotations syntax is", _PyAST_AnnAssign(a, b, c, 0, EXTRA)) }
+    | a=('(' b=single_target ')' { b }
+         | single_subscript_attribute_target) ':' b=expression c=['..' d=annotated_rhs { d }] {
+        CHECK_VERSION(stmt_ty, 6, "Variable annotations syntax is", _PyAST_AnnAssign(a, b, c, 0, EXTRA)) }
     | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ b=(yield_expr | star_expressions) !'=' tc=[TYPE_COMMENT] {
+         _PyAST_Assign(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
+    | a[asdl_expr_seq*]=(z=star_targets '..' { z })+ b=(yield_expr | star_expressions) !'..' tc=[TYPE_COMMENT] {
          _PyAST_Assign(a, b, NEW_TYPE_COMMENT(p, tc), EXTRA) }
     | a=single_target b=augassign ~ c=(yield_expr | star_expressions) {
          _PyAST_AugAssign(a, b->kind, c, EXTRA) }
@@ -339,7 +351,9 @@ param_maybe_default[NameDefaultPair*]:
     | a=param c=default? tc=TYPE_COMMENT? &')' { _PyPegen_name_default_pair(p, a, c, tc) }
 param[arg_ty]: a=NAME b=annotation? { _PyAST_arg(a->v.Name.id, b, NULL, EXTRA) }
 annotation[expr_ty]: ':' a=expression { a }
-default[expr_ty]: '=' a=expression { a }
+default[expr_ty]: 
+    | '=' a=expression { a }
+    | '..' a=expression { a }
 
 # If statement
 # ------------
@@ -509,12 +523,15 @@ capture_pattern[pattern_ty]:
 pattern_capture_target[expr_ty]:
     | !"_" name=NAME !('.' | '(' | '=') {
         _PyPegen_set_expr_context(p, name, Store) }
+    | !"_" name=NAME !('.' | '(' | '..') {
+        _PyPegen_set_expr_context(p, name, Store) }
 
 wildcard_pattern[pattern_ty]:
     | "_" { _PyAST_MatchAs(NULL, NULL, EXTRA) }
 
 value_pattern[pattern_ty]:
     | attr=attr !('.' | '(' | '=') { _PyAST_MatchValue(attr, EXTRA) }
+    | attr=attr !('.' | '(' | '..') { _PyAST_MatchValue(attr, EXTRA) }
 
 attr[expr_ty]:
     | value=name_or_attr '.' attr=NAME {
@@ -606,6 +623,7 @@ keyword_patterns[asdl_seq*]:
 
 keyword_pattern[KeyPatternPair*]:
     | arg=NAME '=' value=pattern { _PyPegen_key_pattern_pair(p, arg, value) }
+    | arg=NAME '..' value=pattern { _PyPegen_key_pattern_pair(p, arg, value) }
 
 # EXPRESSIONS
 # -----------
@@ -729,8 +747,8 @@ shift_expr[expr_ty]:
 
 sum[expr_ty]:
     | a=sum '+' b=term { _PyAST_BinOp(a, Add, b, EXTRA) }
-    | a=sum '°' b=term { _PyAST_BinOp(a, Add, b, EXTRA) }
-    | '°' a=sum b=term { _PyAST_BinOp(a, Add, b, EXTRA) }
+    | a=sum '...' b=term { _PyAST_BinOp(a, Add, b, EXTRA) }
+    | '...' a=sum b=term { _PyAST_BinOp(a, Add, b, EXTRA) }
     | a=sum '-' b=term { _PyAST_BinOp(a, Sub, b, EXTRA) }
     | term
 
@@ -939,11 +957,15 @@ kwarg_or_starred[KeywordOrStarred*]:
     | invalid_kwarg
     | a=NAME '=' b=expression {
         _PyPegen_keyword_or_starred(p, CHECK(keyword_ty, _PyAST_keyword(a->v.Name.id, b, EXTRA)), 1) }
+    | a=NAME '..' b=expression {
+        _PyPegen_keyword_or_starred(p, CHECK(keyword_ty, _PyAST_keyword(a->v.Name.id, b, EXTRA)), 1) }
     | a=starred_expression { _PyPegen_keyword_or_starred(p, a, 0) }
 
 kwarg_or_double_starred[KeywordOrStarred*]:
     | invalid_kwarg
     | a=NAME '=' b=expression {
+        _PyPegen_keyword_or_starred(p, CHECK(keyword_ty, _PyAST_keyword(a->v.Name.id, b, EXTRA)), 1) }
+    | a=NAME '..' b=expression {
         _PyPegen_keyword_or_starred(p, CHECK(keyword_ty, _PyAST_keyword(a->v.Name.id, b, EXTRA)), 1) }
     | '**' a=expression { _PyPegen_keyword_or_starred(p, CHECK(keyword_ty, _PyAST_keyword(NULL, a, EXTRA)), 1) }
 
@@ -1059,6 +1081,8 @@ invalid_arguments:
         RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, PyPegen_last_item(b, comprehension_ty)->target, "Generator expression must be parenthesized") }
     | a=NAME b='=' expression for_if_clauses {
         RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, b, "invalid syntax. Maybe you meant '==' or ':=' instead of '='?")}
+    | a=NAME b='..' expression for_if_clauses {
+        RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, b, "invalid syntax. Maybe you meant '==' or ':=' instead of '..'?")}
     | a=args for_if_clauses { _PyPegen_nonparen_genexp_in_call(p, a) }
     | args ',' a=expression b=for_if_clauses {
         RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, asdl_seq_GET(b, b->size-1)->target, "Generator expression must be parenthesized") }
@@ -1066,7 +1090,12 @@ invalid_arguments:
 invalid_kwarg:
     | a=NAME b='=' expression for_if_clauses {
         RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, b, "invalid syntax. Maybe you meant '==' or ':=' instead of '='?")}
+    | a=NAME b='..' expression for_if_clauses {
+        RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, b, "invalid syntax. Maybe you meant '==' or ':=' instead of '..'?")}
     | !(NAME '=') a=expression b='=' {
+        RAISE_SYNTAX_ERROR_KNOWN_RANGE(
+            a, b, "expression cannot contain assignment, perhaps you meant \"==\"?") }
+    | !(NAME '..') a=expression b='..' {
         RAISE_SYNTAX_ERROR_KNOWN_RANGE(
             a, b, "expression cannot contain assignment, perhaps you meant \"==\"?") }
 
@@ -1093,8 +1122,13 @@ invalid_named_expression:
             a, "cannot use assignment expressions with %s", _PyPegen_get_expr_name(a)) }
     | a=NAME '=' b=bitwise_or !('='|':=') {
         p->in_raw_rule ? NULL : RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, b, "invalid syntax. Maybe you meant '==' or ':=' instead of '='?") }
+    | a=NAME '..' b=bitwise_or !('..'|':=') {
+        p->in_raw_rule ? NULL : RAISE_SYNTAX_ERROR_KNOWN_RANGE(a, b, "invalid syntax. Maybe you meant '==' or ':=' instead of '..'?") }
     | !(list|tuple|genexp|'True'|'None'|'False') a=bitwise_or b='=' bitwise_or !('='|':=') {
         p->in_raw_rule ? NULL : RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "cannot assign to %s here. Maybe you meant '==' instead of '='?",
+                                          _PyPegen_get_expr_name(a)) }
+    | !(list|tuple|genexp|'True'|'None'|'False') a=bitwise_or b='..' bitwise_or !('..'|':=') {
+        p->in_raw_rule ? NULL : RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "cannot assign to %s here. Maybe you meant '==' instead of '..'?",
                                           _PyPegen_get_expr_name(a)) }
 
 invalid_assignment:
@@ -1110,7 +1144,10 @@ invalid_assignment:
         RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "illegal target for annotation") }
     | (star_targets '=')* a=star_expressions '=' {
         RAISE_SYNTAX_ERROR_INVALID_TARGET(STAR_TARGETS, a) }
+    | (star_targets '..')* a=star_expressions '..' {
+        RAISE_SYNTAX_ERROR_INVALID_TARGET(STAR_TARGETS, a) }
     | (star_targets '=')* a=yield_expr '=' { RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "assignment to yield expression not possible") }
+    | (star_targets '..')* a=yield_expr '..' { RAISE_SYNTAX_ERROR_KNOWN_LOCATION(a, "assignment to yield expression not possible") }
     | a=star_expressions augassign (yield_expr | star_expressions) {
         RAISE_SYNTAX_ERROR_KNOWN_LOCATION(
             a,
