@@ -50,6 +50,29 @@ def parse(source, filename='<unknown>', mode='exec', *,
     return compile(source, filename, mode, flags,
                    _feature_version=feature_version)
 
+def isrev(source, filename='<unknown>', mode='exec', *,
+          type_comments=False, feature_version=None):
+    """
+    Parse the source into an AST node and return True if the code is reversible
+    False otherwise
+    """
+    flags = PyCF_ONLY_AST
+    if type_comments:
+        flags |= PyCF_TYPE_COMMENTS
+    if isinstance(feature_version, tuple):
+        major, minor = feature_version  # Should be a 2-tuple.
+        assert major == 3
+        feature_version = minor
+    elif feature_version is None:
+        feature_version = -1
+    # Else it should be an int giving the minor version for 3.x.
+    rescompile = compile(source, filename, mode, flags,
+                   _feature_version=feature_version)
+    # Here we have a string with the ast
+    resparse = dump(rescompile)
+
+    return 'AugAssign' in resparse
+
 
 def literal_eval(node_or_string):
     """
